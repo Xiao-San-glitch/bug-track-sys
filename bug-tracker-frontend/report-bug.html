@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTracker Pro - Report Bug</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-text">
+                    <h1>BugTracker Pro</h1>
+                    <span>Workspace</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
+                <div class="nav-menu">
+                    <a href="dashboard.html" class="nav-item">
+                        Dashboard
+                    </a>
+                    <a href="report-bug.html" class="nav-item active">
+                        Report Bug
+                    </a>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-mini">
+                    <div class="avatar-circle">LP</div>
+                    <div class="user-info-mini">
+                        <span class="name">L Puna</span>
+                        <span class="role">Admin</span>
+                    </div>
+                </div>
+                <a href="index.html" class="btn-secondary">Logout</a>
+            </div>
+        </aside>
+
+        <!-- main -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Report a New Bug</h1>
+                    <p>Submit details about the issue you encountered.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="dashboard.html" class="btn-secondary">Cancel</a>
+                    <button class="btn-primary" onclick="submitBug()">Submit Bug</button>
+                </div>
+            </header>
+
+            <div class="views-container">
+                <div class="card" style="max-width: 800px; margin: 0 auto;">
+                    <div class="card-header border-bottom">
+                        <div>
+                            <h3>Bug Details</h3>
+                            <div class="subtitle">Please provide as much information as possible to help us reproduce
+                                the issue.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-body" style="padding: 24px 0 0 0;">
+                        <form id="bugReportForm">
+                            <div class="form-group">
+                                <label for="bugTitle">Bug Title</label>
+                                <input type="text" id="bugTitle" placeholder="e.g. App crashes on login screen"
+                                    required>
+                            </div>
+
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                                <div>
+                                    <label for="bugSeverity">Severity</label>
+                                    <select id="bugSeverity">
+                                        <option value="critical">Critical</option>
+                                        <option value="high">High</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="bugProject">Project Module</label>
+                                    <select id="bugProject">
+                                        <option value="auth">Authentication</option>
+                                        <option value="dashboard">Dashboard</option>
+                                        <option value="api">API Services</option>
+                                        <option value="ui">UI Components</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group mt-4">
+                                <label for="bugDescription">Description</label>
+                                <textarea id="bugDescription" placeholder="Describe the issue in detail..."></textarea>
+                            </div>
+
+                            <div class="form-group mt-4">
+                                <label for="stepsReproduce">Steps to Reproduce</label>
+                                <textarea id="stepsReproduce"
+                                    placeholder="1. Go to...&#10;2. Click on...&#10;3. See error..."></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function submitBug() {
+            const title = document.getElementById('bugTitle').value;
+            const severitySelect = document.getElementById('bugSeverity');
+            const severity = severitySelect.options[severitySelect.selectedIndex].text;
+            const descriptionInput = document.getElementById('bugDescription').value;
+            const stepsInput = document.getElementById('stepsReproduce').value;
+            
+            if (!title) {
+                alert('Please enter a bug title.');
+                return;
+            }
+
+            // Combine description and steps for the backend model
+            let fullDescription = descriptionInput;
+            if (stepsInput) {
+                fullDescription += `\n\nSteps to Reproduce:\n${stepsInput}`;
+            }
+            if (!fullDescription.trim()) {
+                fullDescription = "No description provided.";
+            }
+
+            // Map severity to priority for backend model
+            let priority = 'Medium';
+            if (severity === 'Critical' || severity === 'High') priority = 'High';
+            if (severity === 'Low') priority = 'Low';
+
+            const payload = {
+                title: title,
+                description: fullDescription,
+                status: 'Open',
+                priority: priority
+            };
+
+            const btn = document.querySelector('button.btn-primary');
+            const originalText = btn.innerText;
+            btn.innerText = 'Submitting...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:5002/api/bugs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert('Bug report submitted successfully!');
+                    window.location.href = 'dashboard.html';
+                } else {
+                    const data = await response.json();
+                    alert(`Error: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to connect to the backend server. Make sure it is running on port 5002.');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>

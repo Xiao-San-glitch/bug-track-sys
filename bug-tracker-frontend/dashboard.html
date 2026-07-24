@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTracker Pro - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-text">
+                    <h1>BugTracker Pro</h1>
+                    <span>Workspace</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
+                <div class="nav-menu">
+                    <a href="dashboard.html" class="nav-item active">
+                        Dashboard
+                    </a>
+                    <a href="report-bug.html" class="nav-item">
+                        Report Bug
+                    </a>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-mini">
+                    <div class="avatar-circle">LP</div>
+                    <div class="user-info-mini">
+                        <span class="name">L Puna</span>
+                        <span class="role">Admin</span>
+                    </div>
+                </div>
+                <a href="index.html" class="btn-secondary">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Dashboard Overview</h1>
+                    <p>Track your project bugs and sprint metrics.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="report-bug.html" class="btn-primary">Report Bug</a>
+                </div>
+            </header>
+
+            <div class="views-container">
+                
+                <!-- stats -->
+                <div class="stats-grid">
+                    <div class="stat-card border-blue">
+                        <div class="stat-label">Total Bugs</div>
+                        <div class="stat-value blue" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card border-red">
+                        <div class="stat-label">Open</div>
+                        <div class="stat-value red" id="stat-open">0</div>
+                    </div>
+                    <div class="stat-card border-purple">
+                        <div class="stat-label">In Progress</div>
+                        <div class="stat-value purple" id="stat-progress">0</div>
+                    </div>
+                    <div class="stat-card border-green">
+                        <div class="stat-label">Resolved</div>
+                        <div class="stat-value green" id="stat-resolved">0</div>
+                    </div>
+                </div>
+
+                <!-- dashboard -->
+                <div class="dashboard-layout">
+                    <!-- Left Column -->
+                    <div class="dashboard-left">
+                        <div class="card no-padding">
+                            <div class="card-header padding-standard border-bottom">
+                                <div>
+                                    <h3>Recent Issues</h3>
+                                    <div class="subtitle">Latest bugs reported across projects</div>
+                                </div>
+                            </div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bug ID</th>
+                                        <th>Title</th>
+                                        <th>Severity</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bugs-table-body">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; padding: 20px;">Loading bugs...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!--Charts-->
+                    <div class="dashboard-right">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Bugs by Severity</h3>
+                                </div>
+                            </div>
+                            <div class="donut-wrapper">
+                                <div class="donut-chart" style="background: conic-gradient(var(--red) 0% 25%, var(--orange) 25% 50%, var(--yellow) 50% 75%, var(--green) 75% 100%);"></div>
+                                <div class="chart-legend horizontal">
+                                    <span><div class="legend-dot bg-red"></div> Critical</span>
+                                    <span><div class="legend-dot bg-orange"></div> High</span>
+                                    <span><div class="legend-dot bg-yellow"></div> Medium</span>
+                                    <span><div class="legend-dot bg-green"></div> Low</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function loadBugs() {
+            try {
+                const response = await fetch('http://localhost:5002/api/bugs');
+                if (!response.ok) throw new Error('Failed to fetch bugs');
+                
+                const bugs = await response.json();
+                
+                // Update stats
+                document.getElementById('stat-total').textContent = bugs.length;
+                document.getElementById('stat-open').textContent = bugs.filter(b => b.status === 'Open').length;
+                document.getElementById('stat-progress').textContent = bugs.filter(b => b.status === 'In Progress').length;
+                document.getElementById('stat-resolved').textContent = bugs.filter(b => b.status === 'Closed').length;
+                
+                // Populate table
+                const tbody = document.getElementById('bugs-table-body');
+                tbody.innerHTML = '';
+                
+                if (bugs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No bugs found</td></tr>';
+                }
+                
+                bugs.forEach((bug, index) => {
+                    // Map priority to severity styling
+                    let severityClass = 'medium';
+                    if (bug.priority === 'High') severityClass = 'critical';
+                    if (bug.priority === 'Low') severityClass = 'low';
+                    
+                    // Map status to pill styling
+                    let statusClass = 'open';
+                    if (bug.status === 'In Progress') statusClass = 'progress';
+                    if (bug.status === 'Closed') statusClass = 'resolved';
+                    
+                    const actionBtn = bug.status !== 'Closed' 
+                        ? `<button class="btn-secondary" style="padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;" onclick="resolveBug('${bug._id}')">Resolve</button>`
+                        : `<span style="color: var(--gray); font-size: 12px;">Resolved</span>`;
+
+                    const row = `
+                        <tr>
+                            <td><strong>BUG-${String(index + 1).padStart(3, '0')}</strong></td>
+                            <td>${bug.title}</td>
+                            <td><span class="status-pill ${severityClass}">${bug.priority}</span></td>
+                            <td><span class="status-pill ${statusClass}">${bug.status}</span></td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+            } catch (error) {
+                console.error('Error loading bugs:', error);
+                const tbody = document.getElementById('bugs-table-body');
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--red); padding: 20px;">Failed to load bugs from server. Make sure the backend is running on port 5002.</td></tr>';
+            }
+        }
+
+        async function resolveBug(id) {
+            if (!confirm('Are you sure you want to mark this bug as resolved?')) return;
+
+            try {
+                const response = await fetch(`http://localhost:5002/api/bugs/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'Closed' })
+                });
+
+                if (response.ok) {
+                    // Reload the table and stats to reflect the new state
+                    loadBugs();
+                } else {
+                    const data = await response.json();
+                    alert(`Failed to resolve bug: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error resolving bug:', error);
+                alert('Error connecting to the server.');
+            }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', loadBugs);
+    </script>
+</body>
+</html>
