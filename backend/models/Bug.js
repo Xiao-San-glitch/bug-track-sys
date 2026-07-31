@@ -17,8 +17,12 @@ const bugSchema = new mongoose.Schema(
     },
     priority: {
       type: String,
-      enum: ['Low', 'Medium', 'High'],
+      enum: ['Low', 'Medium', 'High', 'Critical'],
       default: 'Medium',
+    },
+    code: {
+      type: String,
+      default: '',
     },
   },
   {

@@ -6,6 +6,7 @@
     <title>BugTracker Pro - Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -32,13 +33,13 @@
 
             <div class="sidebar-footer">
                 <div class="user-profile-mini">
-                    <div class="avatar-circle">LP</div>
+                    <div class="avatar-circle" id="user-avatar">?</div>
                     <div class="user-info-mini">
-                        <span class="name">L Puna</span>
-                        <span class="role">Admin</span>
+                        <span class="name" id="user-name">User</span>
+                        <span class="role" id="user-email-display">-</span>
                     </div>
                 </div>
-                <a href="index.html" class="btn-secondary">Logout</a>
+                <a href="login.html" class="btn-secondary" id="logout-btn">Logout</a>
             </div>
         </aside>
 
@@ -114,14 +115,8 @@
                                     <h3>Bugs by Severity</h3>
                                 </div>
                             </div>
-                            <div class="donut-wrapper">
-                                <div class="donut-chart" style="background: conic-gradient(var(--red) 0% 25%, var(--orange) 25% 50%, var(--yellow) 50% 75%, var(--green) 75% 100%);"></div>
-                                <div class="chart-legend horizontal">
-                                    <span><div class="legend-dot bg-red"></div> Critical</span>
-                                    <span><div class="legend-dot bg-orange"></div> High</span>
-                                    <span><div class="legend-dot bg-yellow"></div> Medium</span>
-                                    <span><div class="legend-dot bg-green"></div> Low</span>
-                                </div>
+                            <div style="position: relative; height: 260px; padding: 10px 0;">
+                                <canvas id="severityChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -132,19 +127,71 @@
     </div>
 
     <script>
+        let severityChart = null;
+
+        function updateSeverityChart(bugs) {
+            const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+            bugs.forEach(b => {
+                const p = b.priority;
+                if (counts[p] !== undefined) counts[p]++;
+                else counts['Medium']++;
+            });
+
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            if (severityChart) severityChart.destroy();
+
+            severityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [counts.Critical, counts.High, counts.Medium, counts.Low],
+                        backgroundColor: ['#dc2626', '#ea580c', '#ca8a04', '#16a34a'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 16,
+                                usePointStyle: true,
+                                pointStyleWidth: 8,
+                                font: { family: 'Inter', size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.label}: ${ctx.parsed} bug${ctx.parsed !== 1 ? 's' : ''}`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         async function loadBugs() {
             try {
                 const response = await fetch('http://localhost:5002/api/bugs');
                 if (!response.ok) throw new Error('Failed to fetch bugs');
                 
                 const bugs = await response.json();
+                allBugs = bugs;
                 
                 // Update stats
                 document.getElementById('stat-total').textContent = bugs.length;
                 document.getElementById('stat-open').textContent = bugs.filter(b => b.status === 'Open').length;
                 document.getElementById('stat-progress').textContent = bugs.filter(b => b.status === 'In Progress').length;
                 document.getElementById('stat-resolved').textContent = bugs.filter(b => b.status === 'Closed').length;
-                
+
+                // Update severity chart
+                updateSeverityChart(bugs);
+
                 // Populate table
                 const tbody = document.getElementById('bugs-table-body');
                 tbody.innerHTML = '';
@@ -154,19 +201,20 @@
                 }
                 
                 bugs.forEach((bug, index) => {
-                    // Map priority to severity styling
                     let severityClass = 'medium';
-                    if (bug.priority === 'High') severityClass = 'critical';
-                    if (bug.priority === 'Low') severityClass = 'low';
-                    
-                    // Map status to pill styling
+                    if (bug.priority === 'Critical') severityClass = 'critical';
+                    else if (bug.priority === 'High') severityClass = 'critical';
+                    else if (bug.priority === 'Low') severityClass = 'low';
+
                     let statusClass = 'open';
                     if (bug.status === 'In Progress') statusClass = 'progress';
                     if (bug.status === 'Closed') statusClass = 'resolved';
-                    
-                    const actionBtn = bug.status !== 'Closed' 
-                        ? `<button class="btn-secondary" style="padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;" onclick="resolveBug('${bug._id}')">Resolve</button>`
-                        : `<span style="color: var(--gray); font-size: 12px;">Resolved</span>`;
+
+                    const resolveBtn = bug.status !== 'Closed'
+                        ? `<button class="btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;" onclick="resolveBug('${bug._id}')">Resolve</button>`
+                        : `<span style="color: var(--text-secondary); font-size: 12px;">Resolved</span>`;
+
+                    const autofixBtn = `<button onclick="openAutofix('${bug._id}', this)" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; border: none; font-weight: 600;">✦ AutoFix</button>`;
 
                     const row = `
                         <tr>
@@ -174,7 +222,7 @@
                             <td>${bug.title}</td>
                             <td><span class="status-pill ${severityClass}">${bug.priority}</span></td>
                             <td><span class="status-pill ${statusClass}">${bug.status}</span></td>
-                            <td>${actionBtn}</td>
+                            <td style="display:flex; gap:6px; flex-wrap:wrap;">${resolveBtn} ${autofixBtn}</td>
                         </tr>
                     `;
                     tbody.insertAdjacentHTML('beforeend', row);
@@ -188,29 +236,128 @@
 
         async function resolveBug(id) {
             if (!confirm('Are you sure you want to mark this bug as resolved?')) return;
-
             try {
                 const response = await fetch(`http://localhost:5002/api/bugs/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'Closed' })
                 });
+                if (response.ok) loadBugs();
+                else { const d = await response.json(); alert(`Failed: ${d.message}`); }
+            } catch (error) { alert('Error connecting to the server.'); }
+        }
 
-                if (response.ok) {
-                    // Reload the table and stats to reflect the new state
-                    loadBugs();
+        // Store bugs in memory for the modal
+        let allBugs = [];
+
+        async function openAutofix(bugId) {
+            const bug = allBugs.find(b => b._id === bugId);
+            if (!bug) return;
+
+            document.getElementById('modal-bug-title').textContent = bug.title;
+            document.getElementById('modal-bug-desc').textContent = bug.description || 'No description.';
+            document.getElementById('modal-bug-code').textContent = bug.code || '// No code snippet was attached to this bug.';
+            document.getElementById('modal-fix-output').innerHTML = '';
+            document.getElementById('modal-fix-output').style.display = 'none';
+            document.getElementById('autofix-btn').dataset.bugId = bugId;
+            document.getElementById('autofix-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('autofix-modal').style.display = 'none';
+        }
+
+        async function runAutofix() {
+            const bugId = document.getElementById('autofix-btn').dataset.bugId;
+            const bug = allBugs.find(b => b._id === bugId);
+            if (!bug) return;
+
+            const btn = document.getElementById('autofix-btn');
+            btn.textContent = '✦ Fixing...';
+            btn.disabled = true;
+
+            const output = document.getElementById('modal-fix-output');
+            output.style.display = 'block';
+            output.innerHTML = '<p style="color:var(--text-secondary); font-size:13px;">🤖 AI is analyzing your bug...</p>';
+
+            try {
+                const res = await fetch('http://localhost:5002/api/autofix/fix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bugTitle: bug.title,
+                        bugDescription: bug.description,
+                        code: bug.code
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    // Convert markdown-style code blocks to styled pre elements
+                    const formatted = data.fix
+                        .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre style="background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:8px;overflow-x:auto;font-size:12px;line-height:1.6;">$2</pre>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n/g, '<br>');
+                    output.innerHTML = `<div style="font-size:13px;line-height:1.7;">${formatted}</div>`;
                 } else {
-                    const data = await response.json();
-                    alert(`Failed to resolve bug: ${data.message}`);
+                    output.innerHTML = `<p style="color:var(--red);font-size:13px;">Error: ${data.message}</p>`;
                 }
-            } catch (error) {
-                console.error('Error resolving bug:', error);
-                alert('Error connecting to the server.');
+            } catch (e) {
+                output.innerHTML = '<p style="color:var(--red);font-size:13px;">Failed to connect to AI service.</p>';
             }
+
+            btn.textContent = '✦ AutoFix with AI';
+            btn.disabled = false;
         }
 
 
-        document.addEventListener('DOMContentLoaded', loadBugs);
+        document.addEventListener('DOMContentLoaded', () => {
+            const email = localStorage.getItem('userEmail');
+            if (!email) { window.location.href = 'login.html'; return; }
+            const namePart = email.split('@')[0];
+            document.getElementById('user-avatar').textContent = namePart.substring(0, 2).toUpperCase();
+            document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+            document.getElementById('user-email-display').textContent = email;
+            document.getElementById('logout-btn').addEventListener('click', () => localStorage.removeItem('userEmail'));
+            loadBugs();
+        });
+
+        // Keep a reference to bugs for the modal
+        const _origLoadBugs = loadBugs;
+        loadBugs = async function() {
+            await _origLoadBugs();
+        };
+        // Patch fetch to cache bugs
+        const _realFetch = window.fetch;
+        // Actually just re-fetch inside openAutofix — simpler approach
     </script>
+
+    <!-- AutoFix AI Modal -->
+    <div id="autofix-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:var(--bg-card); border-radius:16px; border:1px solid var(--border-color); width:100%; max-width:680px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:24px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h3 style="font-size:16px; font-weight:700; background:linear-gradient(135deg,#7c3aed,#2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">✦ AutoFix AI</h3>
+                    <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">Powered by Google Gemini</p>
+                </div>
+                <button onclick="closeModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary); line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="margin-bottom:16px;">
+                    <p style="font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px;">Bug Title</p>
+                    <p id="modal-bug-title" style="font-size:14px; font-weight:600; color:var(--text-primary);"></p>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <p style="font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px;">Description</p>
+                    <p id="modal-bug-desc" style="font-size:13px; color:var(--text-secondary); line-height:1.6;"></p>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <p style="font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px;">Code Snippet</p>
+                    <pre id="modal-bug-code" style="background:#1e1e2e; color:#cdd6f4; padding:16px; border-radius:8px; font-size:12px; overflow-x:auto; line-height:1.6; white-space:pre-wrap;"></pre>
+                </div>
+                <button id="autofix-btn" onclick="runAutofix()" style="width:100%; padding:12px; background:linear-gradient(135deg,#7c3aed,#2563eb); color:white; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:.3px;">✦ AutoFix with AI</button>
+                <div id="modal-fix-output" style="margin-top:20px; display:none; border-top:1px solid var(--border-color); padding-top:20px;"></div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

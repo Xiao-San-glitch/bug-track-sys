@@ -34,13 +34,13 @@
 
             <div class="sidebar-footer">
                 <div class="user-profile-mini">
-                    <div class="avatar-circle">LP</div>
+                    <div class="avatar-circle" id="user-avatar">?</div>
                     <div class="user-info-mini">
-                        <span class="name">L Puna</span>
-                        <span class="role">Admin</span>
+                        <span class="name" id="user-name">User</span>
+                        <span class="role" id="user-email-display">-</span>
                     </div>
                 </div>
-                <a href="index.html" class="btn-secondary">Logout</a>
+                <a href="login.html" class="btn-secondary" id="logout-btn">Logout</a>
             </div>
         </aside>
 
@@ -79,10 +79,10 @@
                                 <div>
                                     <label for="bugSeverity">Severity</label>
                                     <select id="bugSeverity">
-                                        <option value="critical">Critical</option>
-                                        <option value="high">High</option>
-                                        <option value="medium" selected>Medium</option>
-                                        <option value="low">Low</option>
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium" selected>Medium</option>
+                                        <option value="Low">Low</option>
                                     </select>
                                 </div>
                                 <div>
@@ -106,6 +106,11 @@
                                 <textarea id="stepsReproduce"
                                     placeholder="1. Go to...&#10;2. Click on...&#10;3. See error..."></textarea>
                             </div>
+
+                            <div class="form-group mt-4">
+                                <label for="bugCode">Code Snippet <span style="color: var(--text-secondary); font-weight: 400;">(optional — paste the buggy code here)</span></label>
+                                <textarea id="bugCode" style="font-family: monospace; font-size: 13px; min-height: 160px;" placeholder="// Paste your buggy code here..."></textarea>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -117,34 +122,26 @@
         async function submitBug() {
             const title = document.getElementById('bugTitle').value;
             const severitySelect = document.getElementById('bugSeverity');
-            const severity = severitySelect.options[severitySelect.selectedIndex].text;
+            const severity = severitySelect.value;
             const descriptionInput = document.getElementById('bugDescription').value;
             const stepsInput = document.getElementById('stepsReproduce').value;
+            const code = document.getElementById('bugCode').value;
             
             if (!title) {
                 alert('Please enter a bug title.');
                 return;
             }
 
-            // Combine description and steps for the backend model
             let fullDescription = descriptionInput;
-            if (stepsInput) {
-                fullDescription += `\n\nSteps to Reproduce:\n${stepsInput}`;
-            }
-            if (!fullDescription.trim()) {
-                fullDescription = "No description provided.";
-            }
-
-            // Map severity to priority for backend model
-            let priority = 'Medium';
-            if (severity === 'Critical' || severity === 'High') priority = 'High';
-            if (severity === 'Low') priority = 'Low';
+            if (stepsInput) fullDescription += `\n\nSteps to Reproduce:\n${stepsInput}`;
+            if (!fullDescription.trim()) fullDescription = 'No description provided.';
 
             const payload = {
-                title: title,
+                title,
                 description: fullDescription,
                 status: 'Open',
-                priority: priority
+                priority: severity,
+                code
             };
 
             const btn = document.querySelector('button.btn-primary');
@@ -176,6 +173,17 @@
                 btn.disabled = false;
             }
         }
+        // Populate sidebar from localStorage
+        const email = localStorage.getItem('userEmail');
+        if (email) {
+            const namePart = email.split('@')[0];
+            document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+            document.getElementById('user-email-display').textContent = email;
+            document.getElementById('user-avatar').textContent = namePart.substring(0, 2).toUpperCase();
+        }
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('userEmail');
+        });
     </script>
 </body>
 
