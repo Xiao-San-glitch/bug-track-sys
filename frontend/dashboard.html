@@ -118,8 +118,20 @@
                                     <h3>Bugs by Severity</h3>
                                 </div>
                             </div>
-                            <div style="position: relative; height: 260px; padding: 10px 0;">
+                            <div style="position: relative; height: 220px; padding: 10px 0;">
                                 <canvas id="severityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-top: 20px;">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Sprint Activity</h3>
+                                    <div class="subtitle">Bugs reported over last 7 days</div>
+                                </div>
+                            </div>
+                            <div style="position: relative; height: 220px; padding: 10px 0;">
+                                <canvas id="sprintChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -179,6 +191,76 @@
             });
         }
 
+        let sprintChart = null;
+
+        function updateSprintChart(bugs) {
+            // Generate last 7 days labels
+            const labels = [];
+            const counts = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                counts.push(0);
+            }
+
+            // Count bugs per day
+            bugs.forEach(b => {
+                if (!b.createdAt) return;
+                const d = new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const index = labels.indexOf(d);
+                if (index !== -1) {
+                    counts[index]++;
+                }
+            });
+
+            const ctx = document.getElementById('sprintChart').getContext('2d');
+            if (sprintChart) sprintChart.destroy();
+
+            sprintChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Bugs Reported',
+                        data: counts,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#8b5cf6',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#8b5cf6',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.parsed.y} bug${ctx.parsed.y !== 1 ? 's' : ''}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { family: 'Inter', size: 11 }, color: '#94a3b8' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                            ticks: { stepSize: 1, font: { family: 'Inter', size: 11 }, color: '#94a3b8' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
         async function loadBugs() {
             try {
                 const { response, data: bugs } = await fetchWithAuth('/bugs');
@@ -194,6 +276,9 @@
 
                 // Update severity chart
                 updateSeverityChart(bugs);
+
+                // Update sprint chart
+                updateSprintChart(bugs);
 
                 // Populate table
                 const tbody = document.getElementById('bugs-table-body');
