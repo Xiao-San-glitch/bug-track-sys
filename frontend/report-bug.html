@@ -29,6 +29,9 @@
                     <a href="report-bug.html" class="nav-item active">
                         Report Bug
                     </a>
+                    <a href="settings.html" class="nav-item">
+                        Settings
+                    </a>
                 </div>
             </div>
 
@@ -118,6 +121,7 @@
         </main>
     </div>
 
+    <script src="/js/api.js"></script>
     <script>
         async function submitBug() {
             const title = document.getElementById('bugTitle').value;
@@ -150,11 +154,8 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch('http://localhost:5002/api/bugs', {
+                const { response, data } = await fetchWithAuth('/bugs', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(payload)
                 });
 
@@ -162,7 +163,6 @@
                     alert('Bug report submitted successfully!');
                     window.location.href = 'dashboard.html';
                 } else {
-                    const data = await response.json();
                     alert(`Error: ${data.message || 'Unknown error'}`);
                 }
             } catch (error) {
@@ -173,16 +173,19 @@
                 btn.disabled = false;
             }
         }
-        // Populate sidebar from localStorage
-        const email = localStorage.getItem('userEmail');
-        if (email) {
-            const namePart = email.split('@')[0];
-            document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-            document.getElementById('user-email-display').textContent = email;
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await requireAuth();
+            if (!user) return; // will redirect to login
+
+            const namePart = user.name || user.email.split('@')[0];
             document.getElementById('user-avatar').textContent = namePart.substring(0, 2).toUpperCase();
-        }
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            localStorage.removeItem('userEmail');
+            document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+            document.getElementById('user-email-display').textContent = user.email;
+            
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
         });
     </script>
 </body>

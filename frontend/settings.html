@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTracker Pro - Settings</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-text">
+                    <h1>BugTracker Pro</h1>
+                    <span>Workspace</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
+                <div class="nav-menu">
+                    <a href="dashboard.html" class="nav-item">
+                        Dashboard
+                    </a>
+                    <a href="report-bug.html" class="nav-item">
+                        Report Bug
+                    </a>
+                    <a href="settings.html" class="nav-item active">
+                        Settings
+                    </a>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-mini">
+                    <div class="avatar-circle" id="user-avatar">?</div>
+                    <div class="user-info-mini">
+                        <span class="name" id="user-name">User</span>
+                        <span class="role" id="user-email-display">-</span>
+                    </div>
+                </div>
+                <a href="#" class="btn-secondary" id="logout-btn">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Account Settings</h1>
+                    <p>Manage your profile and preferences.</p>
+                </div>
+            </header>
+
+            <div class="views-container">
+                <div class="card" style="max-width: 600px;">
+                    <div class="card-header border-bottom">
+                        <div>
+                            <h3>Profile Information</h3>
+                            <div class="subtitle">Update your account's profile information and password.</div>
+                        </div>
+                    </div>
+
+                    <div style="padding: 24px 0 0 0;">
+                        <div id="settings-msg" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;"></div>
+                        
+                        <form id="settingsForm">
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">Full Name</label>
+                                <input type="text" id="profileName" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary);" required>
+                            </div>
+                            
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">Email Address</label>
+                                <input type="email" id="profileEmail" disabled style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-hover); color: var(--text-secondary); cursor: not-allowed;" title="Email cannot be changed">
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 24px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">New Password <span style="color: var(--text-secondary); font-weight: 400;">(Leave blank to keep current)</span></label>
+                                <input type="password" id="profilePassword" placeholder="Enter new password" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary);">
+                            </div>
+
+                            <div style="text-align: right;">
+                                <button type="submit" class="btn-primary" id="save-btn">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await requireAuth();
+            if (!user) return; // will redirect to login
+
+            // Update sidebar
+            const namePart = user.name || user.email.split('@')[0];
+            document.getElementById('user-avatar').textContent = namePart.substring(0, 2).toUpperCase();
+            document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+            document.getElementById('user-email-display').textContent = user.email;
+
+            // Populate form
+            document.getElementById('profileName').value = user.name || '';
+            document.getElementById('profileEmail').value = user.email || '';
+
+            // Handle Logout
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+
+            // Handle Settings Form Submission
+            document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const msgEl = document.getElementById('settings-msg');
+                msgEl.style.display = 'none';
+                
+                const btn = document.getElementById('save-btn');
+                const originalText = btn.innerText;
+                btn.innerText = 'Saving...';
+                btn.disabled = true;
+
+                const name = document.getElementById('profileName').value;
+                const password = document.getElementById('profilePassword').value;
+
+                const payload = { name };
+                if (password) {
+                    payload.password = password;
+                }
+
+                try {
+                    const { response, data } = await fetchWithAuth('/auth/profile', {
+                        method: 'PUT',
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok && data.success) {
+                        localStorage.setItem('token', data.token); // update token
+                        
+                        // Update UI
+                        document.getElementById('user-name').textContent = data.name.charAt(0).toUpperCase() + data.name.slice(1);
+                        document.getElementById('user-avatar').textContent = data.name.substring(0, 2).toUpperCase();
+                        
+                        document.getElementById('profilePassword').value = '';
+                        
+                        msgEl.textContent = 'Profile updated successfully!';
+                        msgEl.style.display = 'block';
+                        msgEl.style.color = 'var(--green)';
+                    } else {
+                        msgEl.textContent = data.message || 'Failed to update profile';
+                        msgEl.style.display = 'block';
+                        msgEl.style.color = 'var(--red)';
+                    }
+                } catch (error) {
+                    msgEl.textContent = 'Network error occurred';
+                    msgEl.style.display = 'block';
+                    msgEl.style.color = 'var(--red)';
+                } finally {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

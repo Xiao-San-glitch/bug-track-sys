@@ -28,6 +28,9 @@
                     <a href="report-bug.html" class="nav-item">
                         Report Bug
                     </a>
+                    <a href="settings.html" class="nav-item">
+                        Settings
+                    </a>
                 </div>
             </div>
 
@@ -126,6 +129,7 @@
         </main>
     </div>
 
+    <script src="/js/api.js"></script>
     <script>
         let severityChart = null;
 
@@ -177,10 +181,9 @@
 
         async function loadBugs() {
             try {
-                const response = await fetch('http://localhost:5002/api/bugs');
+                const { response, data: bugs } = await fetchWithAuth('/bugs');
                 if (!response.ok) throw new Error('Failed to fetch bugs');
                 
-                const bugs = await response.json();
                 allBugs = bugs;
                 
                 // Update stats
@@ -237,13 +240,12 @@
         async function resolveBug(id) {
             if (!confirm('Are you sure you want to mark this bug as resolved?')) return;
             try {
-                const response = await fetch(`http://localhost:5002/api/bugs/${id}`, {
+                const { response, data } = await fetchWithAuth(`/bugs/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'Closed' })
                 });
                 if (response.ok) loadBugs();
-                else { const d = await response.json(); alert(`Failed: ${d.message}`); }
+                else { alert(`Failed: ${data.message}`); }
             } catch (error) { alert('Error connecting to the server.'); }
         }
 
@@ -281,17 +283,15 @@
             output.innerHTML = '<p style="color:var(--text-secondary); font-size:13px;">🤖 AI is analyzing your bug...</p>';
 
             try {
-                const res = await fetch('http://localhost:5002/api/autofix/fix', {
+                const { response, data } = await fetchWithAuth('/autofix/fix', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         bugTitle: bug.title,
                         bugDescription: bug.description,
                         code: bug.code
                     })
                 });
-                const data = await res.json();
-                if (res.ok) {
+                if (response.ok) {
                     // Convert markdown-style code blocks to styled pre elements
                     const formatted = data.fix
                         .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre style="background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:8px;overflow-x:auto;font-size:12px;line-height:1.6;">$2</pre>')
@@ -310,14 +310,20 @@
         }
 
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const email = localStorage.getItem('userEmail');
-            if (!email) { window.location.href = 'login.html'; return; }
-            const namePart = email.split('@')[0];
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await requireAuth();
+            if (!user) return; // will redirect to login
+
+            const namePart = user.name || user.email.split('@')[0];
             document.getElementById('user-avatar').textContent = namePart.substring(0, 2).toUpperCase();
             document.getElementById('user-name').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-            document.getElementById('user-email-display').textContent = email;
-            document.getElementById('logout-btn').addEventListener('click', () => localStorage.removeItem('userEmail'));
+            document.getElementById('user-email-display').textContent = user.email;
+            
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+            
             loadBugs();
         });
 

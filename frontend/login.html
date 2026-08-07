@@ -17,6 +17,10 @@
             </div>
             
             <form id="auth-form">
+                <div class="form-group" id="name-group" style="display: none;">
+                    <label>Full Name</label>
+                    <input type="text" id="name" placeholder="Name">
+                </div>
                 <div class="form-group">
                     <label>Email Address</label>
                     <input type="email" id="email" placeholder="name@company.com" required>
@@ -39,6 +43,7 @@
         </div>
     </div>
 </body>
+<script src="/js/api.js"></script>
 <script>
     let isLogin = true;
     const toggleBtn = document.getElementById('toggle-mode');
@@ -48,14 +53,21 @@
     toggleBtn.addEventListener('click', (e) => {
         e.preventDefault();
         isLogin = !isLogin;
+        const nameGroup = document.getElementById('name-group');
+        const nameInput = document.getElementById('name');
+        
         if (isLogin) {
             submitBtn.textContent = 'Sign In';
             toggleText.textContent = "Don't have an account?";
             toggleBtn.textContent = 'Sign Up';
+            nameGroup.style.display = 'none';
+            nameInput.removeAttribute('required');
         } else {
             submitBtn.textContent = 'Sign Up';
             toggleText.textContent = "Already have an account?";
             toggleBtn.textContent = 'Sign In';
+            nameGroup.style.display = 'block';
+            nameInput.setAttribute('required', 'true');
         }
     });
 
@@ -63,30 +75,25 @@
         e.preventDefault();
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
+        const name = document.getElementById('name').value;
         const errorDiv = document.getElementById('error-message');
         
-        const endpoint = isLogin ? '/api/login' : '/api/signup';
+        const endpoint = isLogin ? '/auth/login' : '/auth/register';
+        const body = isLogin ? { email, password } : { name, email, password };
         
         try {
-            const response = await fetch(`http://localhost:5002${endpoint}`, {
+            const { response, data } = await fetchWithAuth(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(body)
             });
-            
-            const data = await response.json();
             
             if (response.ok && data.success) {
                 if (isLogin) {
-                    localStorage.setItem('userEmail', data.email);
+                    localStorage.setItem('token', data.token);
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert('Sign up successful! You can now log in.');
-                    isLogin = true;
-                    submitBtn.textContent = 'Sign In';
-                    toggleText.textContent = "Don't have an account?";
-                    toggleBtn.textContent = 'Sign Up';
-                    errorDiv.style.display = 'none';
+                    localStorage.setItem('token', data.token);
+                    window.location.href = 'dashboard.html';
                 }
             } else {
                 errorDiv.textContent = data.message || 'Authentication failed';
