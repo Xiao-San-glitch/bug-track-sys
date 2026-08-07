@@ -302,7 +302,7 @@
                         ? `<button class="btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;" onclick="resolveBug('${bug._id}')">Resolve</button>`
                         : `<span style="color: var(--text-secondary); font-size: 12px;">Resolved</span>`;
 
-                    const autofixBtn = `<button onclick="openAutofix('${bug._id}', this)" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; border: none; font-weight: 600;">✦ AutoFix</button>`;
+                    const autofixBtn = `<button onclick="openAutofix('${bug._id}', this)" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; border: none; font-weight: 600;">✦ AutoFix</button>`;
 
                     const row = `
                         <tr>
@@ -445,7 +445,7 @@
                     <p style="font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px;">Code Snippet</p>
                     <pre id="modal-bug-code" style="background:#1e1e2e; color:#cdd6f4; padding:16px; border-radius:8px; font-size:12px; overflow-x:auto; line-height:1.6; white-space:pre-wrap;"></pre>
                 </div>
-                <button id="autofix-btn" onclick="runAutofix()" style="width:100%; padding:12px; background:linear-gradient(135deg,#7c3aed,#2563eb); color:white; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:.3px;">✦ AutoFix with AI</button>
+                <button id="autofix-btn" onclick="runAutofix()" style="width:100%; padding:12px; background:linear-gradient(135deg,#38bdf8,#0284c7); color:white; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:.3px;">✦ AutoFix with AI</button>
                 <div id="modal-fix-output" style="margin-top:20px; display:none; border-top:1px solid var(--border-color); padding-top:20px;"></div>
             </div>
         </div>
